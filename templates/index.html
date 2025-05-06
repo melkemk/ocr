@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Processor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f9f9f9;
+            color: #333;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+        }
+        form {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .section h2 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Invoice Processor</h1>
+    <form id="invoiceForm" action="/process_invoice" method="POST">
+        <label for="url">Enter PDF URL:</label>
+        <input type="text" id="url" name="url" required>
+        <button type="submit">Process Invoice</button>
+    </form>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('invoiceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const response = await fetch('/process_invoice', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            const resultDiv = document.getElementById('result');
+            if (response.ok) {
+                const data = result.data;
+                resultDiv.innerHTML = `
+                    <div class="section">
+                        <h2>Company Information</h2>
+                        <p>Country: ${data.country || 'N/A'}</p>
+                        <p>City: ${data.city || 'N/A'}</p>
+                        <p>Address: ${data.address || 'N/A'}</p>
+                        <p>Postal Code: ${data.postal_code || 'N/A'}</p>
+                        <p>SWIFT Code: ${data.swift_code || 'N/A'}</p>
+                        <p>Email: ${data.email || 'N/A'}</p>
+                        <p>Tel: ${data.tel || 'N/A'}</p>
+                        <p>Fax: ${data.fax || 'N/A'}</p>
+                        <p>TIN: ${data.tin || 'N/A'}</p>
+                        <p>VAT Receipt No: ${data.vat_receipt_no || 'N/A'}</p>
+                        <p>VAT Registration No: ${data.vat_registration_no || 'N/A'}</p>
+                        <p>VAT Registration Date: ${data.vat_registration_date || 'N/A'}</p>
+                    </div>
+                    <div class="section">
+                        <h2>Customer Information</h2>
+                        <p>Customer Name: ${data.customer_name || 'N/A'}</p>
+                        <p>Region: ${data.region || 'N/A'}</p>
+                        <p>Sub City: ${data.sub_city || 'N/A'}</p>
+                        <p>Wereda/Kebele: ${data.wereda_kebele || 'N/A'}</p>
+                        <p>VAT Registration No: ${data.customer_vat_registration_no || 'N/A'}</p>
+                        <p>VAT Registration Date: ${data.customer_vat_registration_date || 'N/A'}</p>
+                        <p>TIN: ${data.customer_tin || 'N/A'}</p>
+                        <p>Branch: ${data.branch || 'N/A'}</p>
+                    </div>
+                    <div class="section">
+                        <h2>Payment/Transaction Information</h2>
+                        <p>Payer: ${data.payer_name || 'N/A'}</p>
+                        <p>Payer Account: ${data.payer_account || 'N/A'}</p>
+                        <p>Receiver: ${data.receiver_name || 'N/A'}</p>
+                        <p>Receiver Account: ${data.receiver_account || 'N/A'}</p>
+                        <p>Payment Date & Time: ${data.payment_date_time || 'N/A'}</p>
+                        <p>Reference No: ${data.reference_no || 'N/A'}</p>
+                        <p>Service Type: ${data.service_type || 'N/A'}</p>
+                        <p>Transferred Amount: ${data.transferred_amount || 'N/A'} ETB</p>
+                        <p>Commission Charge: ${data.commission_charge || 'N/A'} ETB</p>
+                        <p>15% VAT on Commission: ${data.vat_on_commission || 'N/A'} ETB</p>
+                        <p>Total Amount: ${data.total_amount || 'N/A'} ETB</p>
+                        <p>Amount in Words: ${data.amount_in_words || 'N/A'}</p>
+                    </div>
+                    <p>${result.message}</p>
+                `;
+            } else {
+                resultDiv.innerHTML = `<p class="error">Error: ${result.error}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>
