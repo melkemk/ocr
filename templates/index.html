@@ -7,73 +7,98 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
-            background-color: #f9f9f9;
-            color: #333;
-            line-height: 1.6;
-        }
-        h1 {
-            color: #4CAF50;
-            text-align: center;
-        }
-        form {
-            max-width: 600px;
+            max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            background: #fff;
-            border: 1px solid #ddd;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        form {
+            background-color: white;
+            padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         label {
             display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
+            margin-bottom: 10px;
+            color: #555;
         }
-        input[type="text"] {
+        input[type="text"], input[type="file"] {
             width: 100%;
-            padding: 10px;
+            padding: 8px;
             margin-bottom: 20px;
-            border: 1px solid #ccc;
+            border: 1px solid #ddd;
             border-radius: 4px;
             box-sizing: border-box;
         }
         button {
             background-color: #4CAF50;
             color: white;
-            padding: 10px 15px;
+            padding: 10px 20px;
             border: none;
             border-radius: 4px;
             cursor: pointer;
+            width: 100%;
             font-size: 16px;
         }
         button:hover {
             background-color: #45a049;
         }
-        .section {
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #fff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-        }
-        .section h2 {
-            color: #4CAF50;
-            margin-bottom: 10px;
-        }
         .error {
-            color: red;
-            font-weight: bold;
+            color: #ff0000;
+            margin-top: 10px;
+        }
+        .success {
+            color: #4CAF50;
+            margin-top: 10px;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .divider {
             text-align: center;
+            margin: 20px 0;
+            position: relative;
+        }
+        .divider::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background-color: #ddd;
+        }
+        .divider span {
+            background-color: white;
+            padding: 0 10px;
+            color: #666;
+            position: relative;
         }
     </style>
 </head>
 <body>
     <h1>Invoice Processor</h1>
-    <form id="invoiceForm" action="/process_invoice" method="POST">
+    <form id="invoiceForm">
         <label for="url">Enter PDF URL:</label>
-        <input type="text" id="url" name="url" required>
+        <input type="text" id="url" name="url" placeholder="https://example.com/invoice.pdf">
+        
+        <div class="divider">
+            <span>OR</span>
+        </div>
+        
+        <label for="pdf_file">Upload PDF File:</label>
+        <input type="file" id="pdf_file" name="pdf_file" accept=".pdf">
+        
         <button type="submit">Process Invoice</button>
     </form>
     <div id="result"></div>
@@ -82,60 +107,48 @@
         document.getElementById('invoiceForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
-            const response = await fetch('/process_invoice', {
-                method: 'POST',
-                body: formData
-            });
-            const result = await response.json();
             const resultDiv = document.getElementById('result');
-            if (response.ok) {
-                const data = result.data;
-                resultDiv.innerHTML = `
-                    <div class="section">
-                        <h2>Company Information</h2>
-                        <p>Country: ${data.country || 'N/A'}</p>
-                        <p>City: ${data.city || 'N/A'}</p>
-                        <p>Address: ${data.address || 'N/A'}</p>
-                        <p>Postal Code: ${data.postal_code || 'N/A'}</p>
-                        <p>SWIFT Code: ${data.swift_code || 'N/A'}</p>
-                        <p>Email: ${data.email || 'N/A'}</p>
-                        <p>Tel: ${data.tel || 'N/A'}</p>
-                        <p>Fax: ${data.fax || 'N/A'}</p>
-                        <p>TIN: ${data.tin || 'N/A'}</p>
-                        <p>VAT Receipt No: ${data.vat_receipt_no || 'N/A'}</p>
-                        <p>VAT Registration No: ${data.vat_registration_no || 'N/A'}</p>
-                        <p>VAT Registration Date: ${data.vat_registration_date || 'N/A'}</p>
-                    </div>
-                    <div class="section">
-                        <h2>Customer Information</h2>
-                        <p>Customer Name: ${data.customer_name || 'N/A'}</p>
-                        <p>Region: ${data.region || 'N/A'}</p>
-                        <p>Sub City: ${data.sub_city || 'N/A'}</p>
-                        <p>Wereda/Kebele: ${data.wereda_kebele || 'N/A'}</p>
-                        <p>VAT Registration No: ${data.customer_vat_registration_no || 'N/A'}</p>
-                        <p>VAT Registration Date: ${data.customer_vat_registration_date || 'N/A'}</p>
-                        <p>TIN: ${data.customer_tin || 'N/A'}</p>
-                        <p>Branch: ${data.branch || 'N/A'}</p>
-                    </div>
-                    <div class="section">
-                        <h2>Payment/Transaction Information</h2>
-                        <p>Payer: ${data.payer_name || 'N/A'}</p>
-                        <p>Payer Account: ${data.payer_account || 'N/A'}</p>
-                        <p>Receiver: ${data.receiver_name || 'N/A'}</p>
-                        <p>Receiver Account: ${data.receiver_account || 'N/A'}</p>
-                        <p>Payment Date & Time: ${data.payment_date_time || 'N/A'}</p>
-                        <p>Reference No: ${data.reference_no || 'N/A'}</p>
-                        <p>Service Type: ${data.service_type || 'N/A'}</p>
-                        <p>Transferred Amount: ${data.transferred_amount || 'N/A'} ETB</p>
-                        <p>Commission Charge: ${data.commission_charge || 'N/A'} ETB</p>
-                        <p>15% VAT on Commission: ${data.vat_on_commission || 'N/A'} ETB</p>
-                        <p>Total Amount: ${data.total_amount || 'N/A'} ETB</p>
-                        <p>Amount in Words: ${data.amount_in_words || 'N/A'}</p>
-                    </div>
-                    <p>${result.message}</p>
-                `;
-            } else {
-                resultDiv.innerHTML = `<p class="error">Error: ${result.error}</p>`;
+            resultDiv.innerHTML = '<p>Processing invoice...</p>';
+
+            // Basic validation
+            const urlInput = document.getElementById('url').value;
+            const fileInput = document.getElementById('pdf_file').files.length;
+            if (!urlInput && !fileInput) {
+                resultDiv.innerHTML = '<p class="error">Please provide a URL or upload a PDF file.</p>';
+                return;
+            }
+            if (urlInput && fileInput) {
+                resultDiv.innerHTML = '<p class="error">Please provide either a URL or a file, not both.</p>';
+                return;
+            }
+
+            try {
+                const response = await fetch('/process_invoice', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    let html = '<h2>Extracted Information:</h2><table style="width:100%; border-collapse: collapse;">';
+                    for (const [key, value] of Object.entries(result)) {
+                        if (value !== null) {
+                            html += `
+                                <tr>
+                                    <td style="padding: 8px; border: 1px solid #ddd; font-weight: bold;">${key.replace(/_/g, ' ').toUpperCase()}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">${value}</td>
+                                </tr>
+                            `;
+                        }
+                    }
+                    html += '</table>';
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.innerHTML = `<p class="error">Error: ${result.error}</p>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<p class="error">Error: ${error.message}</p>`;
             }
         });
     </script>

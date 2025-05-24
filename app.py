@@ -1,142 +1,61 @@
-from flask import Flask, request, render_template, jsonify
-import requests
+from flask import Flask, request, jsonify, render_template
+import sqlite3
 import os
-import psycopg2
+import requests
 from extract_invoice import extract_invoice_info
-import warnings
-import urllib3
-
-# Suppress InsecureRequestWarning for development
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
-# PostgreSQL database configuration
-DB_CONFIG = {
-    'dbname': 'invoices_db',
-    'user': 'postgres',
-    'password': 'your_postgres_password',  # Replace with the password you set
-    'host': 'localhost',
-    'port': '5432'
-}
+# Configure upload folder
+UPLOAD_FOLDER = 'uploads'
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Function to connect to PostgreSQL
-def get_db_connection():
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        print("Connected to database:", conn.get_dsn_parameters()['dbname'])
-        return conn
-    except Exception as e:
-        print(f"Database connection error: {e}")
-        return None
-
-# Function to initialize database table
 def init_db():
-    conn = get_db_connection()
-    if conn is None:
-        print("Failed to connect to database for initialization")
-        return
-    
-    try:
-        cursor = conn.cursor()
-        # Drop table to ensure clean state
-        cursor.execute("DROP TABLE IF EXISTS invoices;")
-        cursor.execute("""
-            CREATE TABLE invoices (
-                id SERIAL PRIMARY KEY,
-                country VARCHAR(100),
-                city VARCHAR(100),
-                address VARCHAR(255),
-                postal_code VARCHAR(50),
-                swift_code VARCHAR(50),
-                email VARCHAR(100),
-                tel VARCHAR(50),
-                fax VARCHAR(50),
-                tin VARCHAR(50),
-                vat_receipt_no VARCHAR(50),
-                vat_registration_no VARCHAR(50),
-                vat_registration_date DATE,
-                customer_name VARCHAR(255),
-                region VARCHAR(100),
-                sub_city VARCHAR(100),
-                wereda_kebele VARCHAR(100),
-                customer_vat_registration_no VARCHAR(50),
-                customer_vat_registration_date VARCHAR(50),
-                customer_tin VARCHAR(50),
-                branch VARCHAR(100),
-                payer_name VARCHAR(255),
-                payer_account VARCHAR(50),
-                receiver_name VARCHAR(255),
-                receiver_account VARCHAR(50),
-                payment_date_time TIMESTAMP,
-                reference_no VARCHAR(50),
-                service_type VARCHAR(100),
-                transferred_amount DECIMAL(15,2),
-                commission_charge DECIMAL(15,2),
-                vat_on_commission DECIMAL(15,2),
-                total_amount DECIMAL(15,2),
-                amount_in_words TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            );
-        """)
-        conn.commit()
-        print("Database table initialized successfully")
-        # Verify table columns
-        cursor.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'invoices';")
-        columns = [row[0] for row in cursor.fetchall()]
-        print("Columns in invoices table:", columns)
-    except Exception as e:
-        print(f"Error initializing database: {e}")
-    finally:
-        cursor.close()
-        conn.close()
-
-# Function to save extracted data to PostgreSQL
-def save_to_database(data):
-    print("Saving data to database:", data)
-    conn = get_db_connection()
-    if conn is None:
-        return False
-    
-    try:
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            INSERT INTO invoices (
-                country, city, address, postal_code, swift_code, email, tel, fax, tin,
-                vat_receipt_no, vat_registration_no, vat_registration_date,
-                customer_name, region, sub_city, wereda_kebele, customer_vat_registration_no,
-                customer_vat_registration_date, customer_tin, branch,
-                payer_name, payer_account, receiver_name, receiver_account, payment_date_time,
-                reference_no, service_type, transferred_amount, commission_charge,
-                vat_on_commission, total_amount, amount_in_words
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
-            )
-            """,
-            (
-                data['country'], data['city'], data['address'], data['postal_code'],
-                data['swift_code'], data['email'], data['tel'], data['fax'], data['tin'],
-                data['vat_receipt_no'], data['vat_registration_no'], data['vat_registration_date'],
-                data['customer_name'], data['region'], data['sub_city'], data['wereda_kebele'],
-                data['customer_vat_registration_no'], data['customer_vat_registration_date'],
-                data['customer_tin'], data['branch'],
-                data['payer_name'], data['payer_account'], data['receiver_name'],
-                data['receiver_account'], data['payment_date_time'], data['reference_no'],
-                data['service_type'], data['transferred_amount'], data['commission_charge'],
-                data['vat_on_commission'], data['total_amount'], data['amount_in_words']
-            )
+    conn = sqlite3.connect('invoices.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS invoices (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            country TEXT,
+            city TEXT,
+            address TEXT,
+            postal_code TEXT,
+            swift_code TEXT,
+            email TEXT,
+            tel TEXT,
+            fax TEXT,
+            tin TEXT,
+            vat_receipt_no TEXT,
+            vat_registration_no TEXT,
+            vat_registration_date DATE,
+            customer_name TEXT,
+            region TEXT,
+            sub_city TEXT,
+            wereda_kebele TEXT,
+            customer_vat_registration_no TEXT,
+            customer_vat_registration_date DATE,
+            customer_tin TEXT,
+            branch TEXT,
+            payer_name TEXT,
+            payer_account TEXT,
+            receiver_name TEXT,
+            receiver_account TEXT,
+            payment_date_time TIMESTAMP,
+            reference_no TEXT,
+            service_type TEXT,
+            transferred_amount REAL,
+            commission_charge REAL,
+            vat_on_commission REAL,
+            total_amount REAL,
+            amount_in_words TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
-        conn.commit()
-        print("Data saved to database successfully")
-        return True
-    except Exception as e:
-        print(f"Error saving to database: {e}")
-        return False
-    finally:
-        cursor.close()
-        conn.close()
+    ''')
+    conn.commit()
+    conn.close()
 
 @app.route('/')
 def index():
@@ -144,42 +63,75 @@ def index():
 
 @app.route('/process_invoice', methods=['POST'])
 def process_invoice():
-    url = request.form.get('url')
-    if not url:
-        return jsonify({'error': 'URL is required'}), 400
-
-    # Download the PDF
-    pdf_path = 'invoice.pdf'
     try:
-        response = requests.get(url, verify=False)
-        if response.status_code != 200:
-            return jsonify({'error': 'Failed to download PDF'}), 400
+        pdf_path = None
         
-        with open(pdf_path, 'wb') as f:
-            f.write(response.content)
+        # Handle URL input
+        if 'url' in request.form and request.form['url']:
+            url = request.form['url']
+            pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], 'invoice.pdf')
+            response = requests.get(url)
+            response.raise_for_status()
+            with open(pdf_path, 'wb') as f:
+                f.write(response.content)
         
+        # Handle file upload
+        elif 'pdf_file' in request.files:
+            file = request.files['pdf_file']
+            if file.filename == '':
+                return jsonify({'error': 'No file selected'}), 400
+            if file:
+                filename = secure_filename(file.filename)
+                pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(pdf_path)
+        
+        if not pdf_path:
+            return jsonify({'error': 'No URL or PDF file provided'}), 400
+
         # Extract invoice information
         data = extract_invoice_info(pdf_path)
-        
-        if data:
-            # Save to database
-            if save_to_database(data):
-                return jsonify({
-                    'data': data,
-                    'message': 'Invoice processed and saved successfully'
-                })
-            else:
-                return jsonify({'error': 'Failed to save to database'}), 500
-        else:
+        if not data:
             return jsonify({'error': 'Failed to extract invoice information'}), 400
-    
-    except Exception as e:
-        return jsonify({'error': f'Error processing invoice: {str(e)}'}), 500
-    finally:
-        # Clean up: remove the downloaded PDF
+
+        # Save to database
+        conn = sqlite3.connect('invoices.db')
+        c = conn.cursor()
+        c.execute('''
+            INSERT INTO invoices (
+                country, city, address, postal_code, swift_code, email, tel, fax,
+                tin, vat_receipt_no, vat_registration_no, vat_registration_date,
+                customer_name, region, sub_city, wereda_kebele,
+                customer_vat_registration_no, customer_vat_registration_date,
+                customer_tin, branch, payer_name, payer_account, receiver_name,
+                receiver_account, payment_date_time, reference_no, service_type,
+                transferred_amount, commission_charge, vat_on_commission,
+                total_amount, amount_in_words
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            data['country'], data['city'], data['address'], data['postal_code'],
+            data['swift_code'], data['email'], data['tel'], data['fax'],
+            data['tin'], data['vat_receipt_no'], data['vat_registration_no'],
+            data['vat_registration_date'], data['customer_name'], data['region'],
+            data['sub_city'], data['wereda_kebele'], data['customer_vat_registration_no'],
+            data['customer_vat_registration_date'], data['customer_tin'],
+            data['branch'], data['payer_name'], data['payer_account'],
+            data['receiver_name'], data['receiver_account'], data['payment_date_time'],
+            data['reference_no'], data['service_type'], data['transferred_amount'],
+            data['commission_charge'], data['vat_on_commission'], data['total_amount'],
+            data['amount_in_words']
+        ))
+        conn.commit()
+        conn.close()
+
+        # Clean up the temporary PDF file
         if os.path.exists(pdf_path):
             os.remove(pdf_path)
 
+        return jsonify(data)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
-    init_db()  # Initialize database table
+    init_db()
     app.run(debug=True)
